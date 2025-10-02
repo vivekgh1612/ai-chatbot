@@ -2,21 +2,20 @@ import { toast } from "sonner";
 import { Artifact } from "@/components/create-artifact";
 import {
   CopyIcon,
-  GraduationCapIcon,
   RedoIcon,
   SparklesIcon,
   UndoIcon,
 } from "@/components/icons";
-import { ScorecardEditor } from "@/components/scorecard-editor";
+import { IDPEditor } from "@/components/idp-editor";
 
 type Metadata = Record<string, never>;
 
-export const scorecardArtifact = new Artifact<"scorecard", Metadata>({
-  kind: "scorecard",
-  description: "Useful for creating and managing employee performance scorecards based on Balanced Scorecard methodology",
+export const idpArtifact = new Artifact<"idp", Metadata>({
+  kind: "idp",
+  description: "Useful for creating and managing Individual Development Plans (IDPs) for employee growth and performance improvement",
   initialize: () => null,
   onStreamPart: ({ setArtifact, streamPart }) => {
-    if (streamPart.type === "data-scorecardDelta") {
+    if (streamPart.type === "data-idpDelta") {
       setArtifact((draftArtifact) => ({
         ...draftArtifact,
         content: streamPart.data,
@@ -27,7 +26,7 @@ export const scorecardArtifact = new Artifact<"scorecard", Metadata>({
   },
   content: ({ content, onSaveContent, status, isInline }) => {
     return (
-      <ScorecardEditor
+      <IDPEditor
         content={content}
         onSaveContent={onSaveContent}
         status={status}
@@ -69,28 +68,13 @@ export const scorecardArtifact = new Artifact<"scorecard", Metadata>({
       description: "Copy as JSON",
       onClick: ({ content }) => {
         navigator.clipboard.writeText(content);
-        toast.success("Copied scorecard data to clipboard!");
+        toast.success("Copied IDP data to clipboard!");
       },
     },
   ],
   toolbar: [
     {
-      description: "Create Development Plan",
-      icon: <GraduationCapIcon />,
-      onClick: ({ sendMessage }) => {
-        sendMessage({
-          role: "user",
-          parts: [
-            {
-              type: "text",
-              text: "Based on the performance gaps in this scorecard, create an Individual Development Plan (IDP) to help me improve in underperforming areas.",
-            },
-          ],
-        });
-      },
-    },
-    {
-      description: "Suggest improvements",
+      description: "Suggest additional actions",
       icon: <SparklesIcon />,
       onClick: ({ sendMessage }) => {
         sendMessage({
@@ -98,7 +82,7 @@ export const scorecardArtifact = new Artifact<"scorecard", Metadata>({
           parts: [
             {
               type: "text",
-              text: "Can you suggest improvements or adjustments to this scorecard to better align with performance goals?",
+              text: "Can you suggest additional development actions to strengthen this plan?",
             },
           ],
         });

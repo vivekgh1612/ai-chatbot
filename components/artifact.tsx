@@ -13,6 +13,7 @@ import {
 import useSWR, { useSWRConfig } from "swr";
 import { useDebounceCallback, useWindowSize } from "usehooks-ts";
 import { codeArtifact } from "@/artifacts/code/client";
+import { idpArtifact } from "@/artifacts/idp/client";
 import { imageArtifact } from "@/artifacts/image/client";
 import { kanbanArtifact } from "@/artifacts/kanban/client";
 import { scorecardArtifact } from "@/artifacts/scorecard/client";
@@ -38,6 +39,7 @@ export const artifactDefinitions = [
   sheetArtifact,
   kanbanArtifact,
   scorecardArtifact,
+  idpArtifact,
 ];
 export type ArtifactKind = (typeof artifactDefinitions)[number]["kind"];
 

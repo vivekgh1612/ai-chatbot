@@ -40,6 +40,7 @@ export type CustomUIDataTypes = {
   codeDelta: string;
   kanbanDelta: string;
   scorecardDelta: string;
+  idpDelta: string;
   suggestion: Suggestion;
   appendMessage: string;
   id: string;

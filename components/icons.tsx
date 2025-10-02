@@ -870,6 +870,29 @@ export const ChevronDownIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
+export const GraduationCapIcon = ({ size = 16 }: { size?: number }) => (
+  <svg
+    height={size}
+    strokeLinejoin="round"
+    style={{ color: "currentcolor" }}
+    viewBox="0 0 16 16"
+    width={size}
+  >
+    <path
+      d="M8 0L0 4L8 8L16 4L8 0Z"
+      fill="currentColor"
+    />
+    <path
+      d="M14 5.5V10C14 10.8284 12.4183 12 8 12C3.58172 12 2 10.8284 2 10V5.5L8 8.5L14 5.5Z"
+      fill="currentColor"
+    />
+    <path
+      d="M15 5V11H16V5H15Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 export const SparklesIcon = ({ size = 16 }: { size?: number }) => (
   <svg
     height={size}

@@ -177,6 +177,56 @@ The Balanced Scorecard should have 4 perspectives:
 For each perspective, create 2-4 relevant KPIs with realistic targets, current values, units, and weights (should sum to 100% per perspective).
 `;
 
+export const idpPrompt = `
+You are an Individual Development Plan (IDP) creation assistant. Create a development plan structure in JSON format based on the given prompt.
+
+IMPORTANT: If the user references a scorecard or asks you to create an IDP based on performance gaps, you MUST:
+1. Use the getDocument tool to read the scorecard content
+2. Analyze the KPIs to identify underperforming areas (where current < target)
+3. Create SPECIFIC development goals that directly address those gaps
+4. Link each action to the relevant KPI it addresses
+
+The JSON structure should follow this format:
+{
+  "employeeName": "Employee Name",
+  "period": "Q1 2025",
+  "goals": [
+    {
+      "id": "goal-1",
+      "goal": "Improve customer satisfaction and engagement",
+      "rationale": "Customer Satisfaction KPI is at 70% vs target of 90%. Need to develop skills in customer relationship management.",
+      "actions": [
+        {
+          "id": "action-1",
+          "activity": "Complete Advanced Customer Service Training course",
+          "type": "Training",
+          "timeline": "Jan-Feb 2025",
+          "status": "not-started",
+          "linkedKPI": "Customer Satisfaction Score"
+        },
+        {
+          "id": "action-2",
+          "activity": "Shadow top-performing CSM for 2 weeks",
+          "type": "Mentoring",
+          "timeline": "March 2025",
+          "status": "not-started",
+          "linkedKPI": "Customer Satisfaction Score"
+        }
+      ]
+    }
+  ]
+}
+
+Action types can be: Training, Coaching, Project, Reading, Mentoring
+Status can be: not-started, in-progress, completed
+
+Create 2-4 development goals, each with 2-4 specific actions. Make sure goals and actions are:
+- Specific and actionable
+- Directly tied to performance gaps (when based on a scorecard)
+- Realistic and achievable within the timeline
+- Include the linkedKPI field when the action addresses a specific scorecard KPI
+`;
+
 export const updateDocumentPrompt = (
   currentContent: string | null,
   type: ArtifactKind
@@ -191,6 +241,8 @@ export const updateDocumentPrompt = (
     mediaType = "kanban board";
   } else if (type === "scorecard") {
     mediaType = "performance scorecard";
+  } else if (type === "idp") {
+    mediaType = "individual development plan";
   }
 
   return `Improve the following contents of the ${mediaType} based on the given prompt.

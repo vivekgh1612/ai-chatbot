@@ -18,6 +18,7 @@ import { CodeEditor } from "./code-editor";
 import { DocumentToolCall, DocumentToolResult } from "./document";
 import { InlineDocumentSkeleton } from "./document-skeleton";
 import { FileIcon, FullscreenIcon, ImageIcon, LoaderIcon } from "./icons";
+import { IDPEditor } from "./idp-editor";
 import { ImageEditor } from "./image-editor";
 import { KanbanEditor } from "./kanban-editor";
 import { ScorecardEditor } from "./scorecard-editor";
@@ -254,6 +255,7 @@ const DocumentContent = ({ document }: { document: Document }) => {
       "p-0": document.kind === "code",
       "p-4": document.kind === "kanban",
       "p-0": document.kind === "scorecard",
+      "p-4": document.kind === "idp",
     }
   );
 
@@ -293,6 +295,13 @@ const DocumentContent = ({ document }: { document: Document }) => {
         />
       ) : document.kind === "scorecard" ? (
         <ScorecardEditor
+          content={document.content ?? ""}
+          onSaveContent={handleSaveContent}
+          status={artifact.status}
+          isInline={true}
+        />
+      ) : document.kind === "idp" ? (
+        <IDPEditor
           content={document.content ?? ""}
           onSaveContent={handleSaveContent}
           status={artifact.status}
