@@ -50,20 +50,44 @@ About the origin of user's request:
 - country: ${requestHints.country}
 `;
 
+type DocumentInfo = {
+  id: string;
+  title: string;
+  kind: string;
+};
+
+const getDocumentsPrompt = (documents: DocumentInfo[], currentDocumentId?: string) => {
+  if (documents.length === 0) return "";
+
+  let prompt = "\n\nAvailable artifacts in this conversation:\n";
+  documents.forEach(doc => {
+    const isCurrent = doc.id === currentDocumentId;
+    prompt += `- ${doc.id}: "${doc.title}" (${doc.kind})${isCurrent ? " [Currently visible]" : ""}\n`;
+  });
+  prompt += "\nUse the getDocument tool with the document ID to read and analyze artifact contents.";
+
+  return prompt;
+};
+
 export const systemPrompt = ({
   selectedChatModel,
   requestHints,
+  documents = [],
+  currentDocumentId,
 }: {
   selectedChatModel: string;
   requestHints: RequestHints;
+  documents?: DocumentInfo[];
+  currentDocumentId?: string;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
+  const documentsPrompt = getDocumentsPrompt(documents, currentDocumentId);
 
   if (selectedChatModel === "chat-model-reasoning") {
-    return `${regularPrompt}\n\n${requestPrompt}`;
+    return `${regularPrompt}\n\n${requestPrompt}${documentsPrompt}`;
   }
 
-  return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+  return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}${documentsPrompt}`;
 };
 
 export const codePrompt = `
@@ -119,6 +143,40 @@ The JSON structure should follow this format:
 Create meaningful columns (like "To Do", "In Progress", "Done") and populate them with relevant tasks based on the user's request.
 `;
 
+export const scorecardPrompt = `
+You are a Balanced Scorecard creation assistant. Create a performance scorecard structure in JSON format based on the given prompt.
+
+The JSON structure should follow this format:
+{
+  "employeeName": "Employee Name",
+  "period": "Q1 2025",
+  "perspectives": [
+    {
+      "id": "financial",
+      "name": "Financial",
+      "kpis": [
+        {
+          "id": "kpi-1",
+          "name": "Revenue Growth",
+          "target": 100,
+          "current": 85,
+          "unit": "%",
+          "weight": 30
+        }
+      ]
+    }
+  ]
+}
+
+The Balanced Scorecard should have 4 perspectives:
+1. Financial - Financial performance metrics (revenue, costs, profitability)
+2. Customer - Customer satisfaction and relationship metrics
+3. Internal Processes - Operational efficiency and quality metrics
+4. Learning & Growth - Employee development and innovation metrics
+
+For each perspective, create 2-4 relevant KPIs with realistic targets, current values, units, and weights (should sum to 100% per perspective).
+`;
+
 export const updateDocumentPrompt = (
   currentContent: string | null,
   type: ArtifactKind
@@ -131,6 +189,8 @@ export const updateDocumentPrompt = (
     mediaType = "spreadsheet";
   } else if (type === "kanban") {
     mediaType = "kanban board";
+  } else if (type === "scorecard") {
+    mediaType = "performance scorecard";
   }
 
   return `Improve the following contents of the ${mediaType} based on the given prompt.

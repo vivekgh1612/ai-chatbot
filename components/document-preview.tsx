@@ -20,6 +20,7 @@ import { InlineDocumentSkeleton } from "./document-skeleton";
 import { FileIcon, FullscreenIcon, ImageIcon, LoaderIcon } from "./icons";
 import { ImageEditor } from "./image-editor";
 import { KanbanEditor } from "./kanban-editor";
+import { ScorecardEditor } from "./scorecard-editor";
 import { SpreadsheetEditor } from "./sheet-editor";
 import { Editor } from "./text-editor";
 
@@ -252,6 +253,7 @@ const DocumentContent = ({ document }: { document: Document }) => {
       "p-4 sm:px-14 sm:py-16": document.kind === "text",
       "p-0": document.kind === "code",
       "p-4": document.kind === "kanban",
+      "p-0": document.kind === "scorecard",
     }
   );
 
@@ -284,6 +286,13 @@ const DocumentContent = ({ document }: { document: Document }) => {
         </div>
       ) : document.kind === "kanban" ? (
         <KanbanEditor
+          content={document.content ?? ""}
+          onSaveContent={handleSaveContent}
+          status={artifact.status}
+          isInline={true}
+        />
+      ) : document.kind === "scorecard" ? (
+        <ScorecardEditor
           content={document.content ?? ""}
           onSaveContent={handleSaveContent}
           status={artifact.status}

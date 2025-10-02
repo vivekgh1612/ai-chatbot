@@ -23,6 +23,7 @@ import type { ChatModel } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
 import { createDocument } from "@/lib/ai/tools/create-document";
+import { getDocument } from "@/lib/ai/tools/get-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
@@ -146,6 +147,33 @@ export async function POST(request: Request) {
     const messagesFromDb = await getMessagesByChatId({ id });
     const uiMessages = [...convertToUIMessages(messagesFromDb), message];
 
+    // Extract document IDs from tool results in the conversation
+    const documents: Array<{ id: string; title: string; kind: string }> = [];
+    const seenIds = new Set<string>();
+
+    for (const msg of uiMessages) {
+      if (msg.role === "assistant" && msg.parts) {
+        for (const part of msg.parts) {
+          if (
+            part.type === "tool-result" &&
+            (part.toolName === "createDocument" || part.toolName === "updateDocument")
+          ) {
+            if (part.output && typeof part.output === "object" && "id" in part.output) {
+              const output = part.output as { id: string; title: string; kind: string };
+              if (!seenIds.has(output.id)) {
+                seenIds.add(output.id);
+                documents.push({
+                  id: output.id,
+                  title: output.title,
+                  kind: output.kind,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
     const { longitude, latitude, city, country } = geolocation(request);
 
     const requestHints: RequestHints = {
@@ -177,7 +205,11 @@ export async function POST(request: Request) {
       execute: ({ writer: dataStream }) => {
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: systemPrompt({
+            selectedChatModel,
+            requestHints,
+            documents,
+          }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools:
@@ -187,6 +219,7 @@ export async function POST(request: Request) {
                   "getWeather",
                   "createDocument",
                   "updateDocument",
+                  "getDocument",
                   "requestSuggestions",
                 ],
           experimental_transform: smoothStream({ chunking: "word" }),
@@ -194,6 +227,7 @@ export async function POST(request: Request) {
             getWeather,
             createDocument: createDocument({ session, dataStream }),
             updateDocument: updateDocument({ session, dataStream }),
+            getDocument: getDocument({ session }),
             requestSuggestions: requestSuggestions({
               session,
               dataStream,

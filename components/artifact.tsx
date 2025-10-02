@@ -15,6 +15,7 @@ import { useDebounceCallback, useWindowSize } from "usehooks-ts";
 import { codeArtifact } from "@/artifacts/code/client";
 import { imageArtifact } from "@/artifacts/image/client";
 import { kanbanArtifact } from "@/artifacts/kanban/client";
+import { scorecardArtifact } from "@/artifacts/scorecard/client";
 import { sheetArtifact } from "@/artifacts/sheet/client";
 import { textArtifact } from "@/artifacts/text/client";
 import { useArtifact } from "@/hooks/use-artifact";
@@ -36,6 +37,7 @@ export const artifactDefinitions = [
   imageArtifact,
   sheetArtifact,
   kanbanArtifact,
+  scorecardArtifact,
 ];
 export type ArtifactKind = (typeof artifactDefinitions)[number]["kind"];
 

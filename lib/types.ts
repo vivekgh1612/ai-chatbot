@@ -2,6 +2,7 @@ import type { InferUITool, UIMessage } from "ai";
 import { z } from "zod";
 import type { ArtifactKind } from "@/components/artifact";
 import type { createDocument } from "./ai/tools/create-document";
+import type { getDocument } from "./ai/tools/get-document";
 import type { getWeather } from "./ai/tools/get-weather";
 import type { requestSuggestions } from "./ai/tools/request-suggestions";
 import type { updateDocument } from "./ai/tools/update-document";
@@ -19,6 +20,7 @@ export type MessageMetadata = z.infer<typeof messageMetadataSchema>;
 type weatherTool = InferUITool<typeof getWeather>;
 type createDocumentTool = InferUITool<ReturnType<typeof createDocument>>;
 type updateDocumentTool = InferUITool<ReturnType<typeof updateDocument>>;
+type getDocumentTool = InferUITool<ReturnType<typeof getDocument>>;
 type requestSuggestionsTool = InferUITool<
   ReturnType<typeof requestSuggestions>
 >;
@@ -27,6 +29,7 @@ export type ChatTools = {
   getWeather: weatherTool;
   createDocument: createDocumentTool;
   updateDocument: updateDocumentTool;
+  getDocument: getDocumentTool;
   requestSuggestions: requestSuggestionsTool;
 };
 
@@ -36,6 +39,7 @@ export type CustomUIDataTypes = {
   sheetDelta: string;
   codeDelta: string;
   kanbanDelta: string;
+  scorecardDelta: string;
   suggestion: Suggestion;
   appendMessage: string;
   id: string;
