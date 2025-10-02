@@ -1,4 +1,5 @@
 import { geolocation } from "@vercel/functions";
+import { openai } from "@ai-sdk/openai";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -201,8 +202,33 @@ export async function POST(request: Request) {
 
     let finalMergedUsage: AppUsage | undefined;
 
+    // Check if this is an OpenAI model that supports built-in tools
+    const isOpenAIModel = ["gpt-5", "gpt-5-mini", "gpt-4.1", "gpt-4.1-mini"].includes(selectedChatModel);
+
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
+        // Build tools object - add OpenAI built-in tools for OpenAI models
+        const tools: Record<string, any> = {
+          getWeather,
+          createDocument: createDocument({ session, dataStream }),
+          updateDocument: updateDocument({ session, dataStream }),
+          getDocument: getDocument({ session }),
+          requestSuggestions: requestSuggestions({
+            session,
+            dataStream,
+          }),
+        };
+
+        // Add OpenAI built-in tools if using OpenAI model
+        if (isOpenAIModel) {
+          tools.web_search = openai.tools.webSearch();
+          tools.code_interpreter = openai.tools.codeInterpreter();
+        }
+
+        const activeTools = selectedChatModel === "grok-reasoning"
+          ? []
+          : Object.keys(tools);
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPrompt({
@@ -212,27 +238,9 @@ export async function POST(request: Request) {
           }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
-          experimental_activeTools:
-            selectedChatModel === "grok-reasoning"
-              ? []
-              : [
-                  "getWeather",
-                  "createDocument",
-                  "updateDocument",
-                  "getDocument",
-                  "requestSuggestions",
-                ],
+          experimental_activeTools: activeTools,
           experimental_transform: smoothStream({ chunking: "word" }),
-          tools: {
-            getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
-            getDocument: getDocument({ session }),
-            requestSuggestions: requestSuggestions({
-              session,
-              dataStream,
-            }),
-          },
+          tools,
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: "stream-text",

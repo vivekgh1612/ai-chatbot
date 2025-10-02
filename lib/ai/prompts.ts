@@ -46,6 +46,13 @@ Do not update document right after creating it. Wait for user feedback or reques
 export const regularPrompt =
   "You are a friendly assistant! Keep your responses concise and helpful.";
 
+export const openAIToolsPrompt = `
+You have access to the following built-in tools:
+- **web_search**: Search the web for current information and real-time data. Use this when you need up-to-date information or facts that may have changed since your training data. The tool provides URL sources for the information found.
+- **code_interpreter**: Write and execute Python code in a secure sandbox. Use this for calculations, data analysis, visualizations, or working with data. You can process files and generate charts.
+
+Use these tools proactively when they would help answer the user's question better.`;
+
 export type RequestHints = {
   latitude: Geo["latitude"];
   longitude: Geo["longitude"];
@@ -67,15 +74,21 @@ type DocumentInfo = {
   kind: string;
 };
 
-const getDocumentsPrompt = (documents: DocumentInfo[], currentDocumentId?: string) => {
-  if (documents.length === 0) return "";
+const getDocumentsPrompt = (
+  documents: DocumentInfo[],
+  currentDocumentId?: string
+) => {
+  if (documents.length === 0) {
+    return "";
+  }
 
   let prompt = "\n\nAvailable artifacts in this conversation:\n";
-  documents.forEach(doc => {
+  for (const doc of documents) {
     const isCurrent = doc.id === currentDocumentId;
     prompt += `- ${doc.id}: "${doc.title}" (${doc.kind})${isCurrent ? " [Currently visible]" : ""}\n`;
-  });
-  prompt += "\nUse the getDocument tool with the document ID to read and analyze artifact contents.";
+  }
+  prompt +=
+    "\nUse the getDocument tool with the document ID to read and analyze artifact contents.";
 
   return prompt;
 };
@@ -93,12 +106,20 @@ export const systemPrompt = ({
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
   const documentsPrompt = getDocumentsPrompt(documents, currentDocumentId);
+  const isOpenAIModel = [
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+  ].includes(selectedChatModel);
 
   if (selectedChatModel === "grok-reasoning") {
     return `${regularPrompt}\n\n${requestPrompt}${documentsPrompt}`;
   }
 
-  return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}${documentsPrompt}`;
+  const toolsPrompt = isOpenAIModel ? `\n\n${openAIToolsPrompt}` : "";
+
+  return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}${documentsPrompt}${toolsPrompt}`;
 };
 
 export const codePrompt = `
