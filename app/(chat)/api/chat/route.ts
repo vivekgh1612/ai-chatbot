@@ -1,5 +1,5 @@
-import { geolocation } from "@vercel/functions";
 import { openai } from "@ai-sdk/openai";
+import { geolocation } from "@vercel/functions";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -88,15 +88,15 @@ export function getStreamContext() {
 }
 
 export async function POST(request: Request) {
-  const startTime = Date.now();
-  console.log('[TIMING] Request received');
+  // const startTime = Date.now();
+  // console.log('[TIMING] Request received');
 
   let requestBody: PostRequestBody;
 
   try {
     const json = await request.json();
     requestBody = postRequestBodySchema.parse(json);
-    console.log('[TIMING] Request parsed:', Date.now() - startTime, 'ms');
+    // console.log('[TIMING] Request parsed:', Date.now() - startTime, 'ms');
   } catch (_) {
     return new ChatSDKError("bad_request:api").toResponse();
   }
@@ -114,17 +114,17 @@ export async function POST(request: Request) {
       selectedVisibilityType: VisibilityType;
     } = requestBody;
 
-    const authStart = Date.now();
+    // const authStart = Date.now();
     const session = await auth();
-    console.log('[TIMING] Auth completed:', Date.now() - authStart, 'ms');
+    // console.log('[TIMING] Auth completed:', Date.now() - authStart, 'ms');
 
     if (!session?.user) {
       return new ChatSDKError("unauthorized:chat").toResponse();
     }
 
-    const getChatStart = Date.now();
+    // const getChatStart = Date.now();
     const chat = await getChatById({ id });
-    console.log('[TIMING] getChatById completed:', Date.now() - getChatStart, 'ms');
+    // console.log('[TIMING] getChatById completed:', Date.now() - getChatStart, 'ms');
 
     if (chat) {
       if (chat.userId !== session.user.id) {
@@ -132,14 +132,14 @@ export async function POST(request: Request) {
       }
     } else {
       // Save chat with temporary title immediately, generate real title in background
-      const saveChatStart = Date.now();
+      // const saveChatStart = Date.now();
       await saveChat({
         id,
         userId: session.user.id,
         title: "New Chat",
         visibility: selectedVisibilityType,
       });
-      console.log('[TIMING] saveChat completed:', Date.now() - saveChatStart, 'ms');
+      // console.log('[TIMING] saveChat completed:', Date.now() - saveChatStart, 'ms');
 
       // Generate title asynchronously in the background (non-blocking)
       after(async () => {
@@ -160,9 +160,9 @@ export async function POST(request: Request) {
       });
     }
 
-    const getMessagesStart = Date.now();
+    // const getMessagesStart = Date.now();
     const messagesFromDb = await getMessagesByChatId({ id });
-    console.log('[TIMING] getMessagesByChatId completed:', Date.now() - getMessagesStart, 'ms');
+    // console.log('[TIMING] getMessagesByChatId completed:', Date.now() - getMessagesStart, 'ms');
 
     const uiMessages = [...convertToUIMessages(messagesFromDb), message];
 
@@ -175,18 +175,24 @@ export async function POST(request: Request) {
         for (const part of msg.parts) {
           if (
             part.type === "tool-result" &&
-            (part.toolName === "createDocument" || part.toolName === "updateDocument")
+            (part.toolName === "createDocument" ||
+              part.toolName === "updateDocument") &&
+            part.output &&
+            typeof part.output === "object" &&
+            "id" in part.output
           ) {
-            if (part.output && typeof part.output === "object" && "id" in part.output) {
-              const output = part.output as { id: string; title: string; kind: string };
-              if (!seenIds.has(output.id)) {
-                seenIds.add(output.id);
-                documents.push({
-                  id: output.id,
-                  title: output.title,
-                  kind: output.kind,
-                });
-              }
+            const output = part.output as {
+              id: string;
+              title: string;
+              kind: string;
+            };
+            if (!seenIds.has(output.id)) {
+              seenIds.add(output.id);
+              documents.push({
+                id: output.id,
+                title: output.title,
+                kind: output.kind,
+              });
             }
           }
         }
@@ -202,7 +208,7 @@ export async function POST(request: Request) {
       country,
     };
 
-    console.log('[TIMING] Document extraction completed, total so far:', Date.now() - startTime, 'ms');
+    // console.log('[TIMING] Document extraction completed, total so far:', Date.now() - startTime, 'ms');
 
     const streamId = generateUUID();
 
@@ -230,13 +236,18 @@ export async function POST(request: Request) {
     let finalMergedUsage: AppUsage | undefined;
 
     // Check if this is an OpenAI model that supports built-in tools
-    const isOpenAIModel = ["gpt-5", "gpt-5-mini", "gpt-4.1", "gpt-4.1-mini"].includes(selectedChatModel);
+    const isOpenAIModel = [
+      "gpt-5",
+      "gpt-5-mini",
+      "gpt-4.1",
+      "gpt-4.1-mini",
+    ].includes(selectedChatModel);
 
-    console.log('[TIMING] About to start streaming, total time before stream:', Date.now() - startTime, 'ms');
+    // console.log('[TIMING] About to start streaming, total time before stream:', Date.now() - startTime, 'ms');
 
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
-        console.log('[TIMING] Stream execute callback started, total time:', Date.now() - startTime, 'ms');
+        // console.log('[TIMING] Stream execute callback started, total time:', Date.now() - startTime, 'ms');
 
         // Build tools object - add OpenAI built-in tools for OpenAI models
         const tools: Record<string, any> = {
@@ -256,11 +267,10 @@ export async function POST(request: Request) {
           tools.code_interpreter = openai.tools.codeInterpreter();
         }
 
-        const activeTools = selectedChatModel === "grok-reasoning"
-          ? []
-          : Object.keys(tools);
+        const activeTools =
+          selectedChatModel === "grok-reasoning" ? [] : Object.keys(tools);
 
-        console.log('[TIMING] About to call streamText, total time:', Date.now() - startTime, 'ms');
+        // console.log('[TIMING] About to call streamText, total time:', Date.now() - startTime, 'ms');
 
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
@@ -279,7 +289,7 @@ export async function POST(request: Request) {
             functionId: "stream-text",
           },
           onFinish: async ({ usage }) => {
-            console.log('[TIMING] Stream finished, total time:', Date.now() - startTime, 'ms');
+            // console.log('[TIMING] Stream finished, total time:', Date.now() - startTime, 'ms');
             try {
               const providers = await getTokenlensCatalog();
               const modelId =
