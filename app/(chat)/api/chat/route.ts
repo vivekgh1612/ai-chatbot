@@ -38,6 +38,7 @@ import {
   saveChat,
   saveMessages,
   updateChatLastContextById,
+  updateChatTitleById,
 } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
 import type { ChatMessage } from "@/lib/types";
@@ -87,11 +88,15 @@ export function getStreamContext() {
 }
 
 export async function POST(request: Request) {
+  const startTime = Date.now();
+  console.log('[TIMING] Request received');
+
   let requestBody: PostRequestBody;
 
   try {
     const json = await request.json();
     requestBody = postRequestBodySchema.parse(json);
+    console.log('[TIMING] Request parsed:', Date.now() - startTime, 'ms');
   } catch (_) {
     return new ChatSDKError("bad_request:api").toResponse();
   }
@@ -109,43 +114,56 @@ export async function POST(request: Request) {
       selectedVisibilityType: VisibilityType;
     } = requestBody;
 
+    const authStart = Date.now();
     const session = await auth();
+    console.log('[TIMING] Auth completed:', Date.now() - authStart, 'ms');
 
     if (!session?.user) {
       return new ChatSDKError("unauthorized:chat").toResponse();
     }
 
-    const userType: UserType = session.user.type;
-
-    const messageCount = await getMessageCountByUserId({
-      id: session.user.id,
-      differenceInHours: 24,
-    });
-
-    if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
-      return new ChatSDKError("rate_limit:chat").toResponse();
-    }
-
+    const getChatStart = Date.now();
     const chat = await getChatById({ id });
+    console.log('[TIMING] getChatById completed:', Date.now() - getChatStart, 'ms');
 
     if (chat) {
       if (chat.userId !== session.user.id) {
         return new ChatSDKError("forbidden:chat").toResponse();
       }
     } else {
-      const title = await generateTitleFromUserMessage({
-        message,
-      });
-
+      // Save chat with temporary title immediately, generate real title in background
+      const saveChatStart = Date.now();
       await saveChat({
         id,
         userId: session.user.id,
-        title,
+        title: "New Chat",
         visibility: selectedVisibilityType,
+      });
+      console.log('[TIMING] saveChat completed:', Date.now() - saveChatStart, 'ms');
+
+      // Generate title asynchronously in the background (non-blocking)
+      after(async () => {
+        try {
+          const title = await generateTitleFromUserMessage({
+            message,
+          });
+
+          // Update the chat with the generated title
+          await updateChatTitleById({
+            chatId: id,
+            title,
+          });
+        } catch (error) {
+          console.error("Failed to generate title:", error);
+          // Silently fail - the "New Chat" title will remain
+        }
       });
     }
 
+    const getMessagesStart = Date.now();
     const messagesFromDb = await getMessagesByChatId({ id });
+    console.log('[TIMING] getMessagesByChatId completed:', Date.now() - getMessagesStart, 'ms');
+
     const uiMessages = [...convertToUIMessages(messagesFromDb), message];
 
     // Extract document IDs from tool results in the conversation
@@ -184,29 +202,42 @@ export async function POST(request: Request) {
       country,
     };
 
-    await saveMessages({
-      messages: [
-        {
-          chatId: id,
-          id: message.id,
-          role: "user",
-          parts: message.parts,
-          attachments: [],
-          createdAt: new Date(),
-        },
-      ],
-    });
+    console.log('[TIMING] Document extraction completed, total so far:', Date.now() - startTime, 'ms');
 
     const streamId = generateUUID();
-    await createStreamId({ streamId, chatId: id });
+
+    // Save user message and stream ID in background (non-blocking)
+    after(async () => {
+      try {
+        await saveMessages({
+          messages: [
+            {
+              chatId: id,
+              id: message.id,
+              role: "user",
+              parts: message.parts,
+              attachments: [],
+              createdAt: new Date(),
+            },
+          ],
+        });
+        await createStreamId({ streamId, chatId: id });
+      } catch (error) {
+        console.error("Failed to save user message or stream ID:", error);
+      }
+    });
 
     let finalMergedUsage: AppUsage | undefined;
 
     // Check if this is an OpenAI model that supports built-in tools
     const isOpenAIModel = ["gpt-5", "gpt-5-mini", "gpt-4.1", "gpt-4.1-mini"].includes(selectedChatModel);
 
+    console.log('[TIMING] About to start streaming, total time before stream:', Date.now() - startTime, 'ms');
+
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
+        console.log('[TIMING] Stream execute callback started, total time:', Date.now() - startTime, 'ms');
+
         // Build tools object - add OpenAI built-in tools for OpenAI models
         const tools: Record<string, any> = {
           getWeather,
@@ -229,6 +260,8 @@ export async function POST(request: Request) {
           ? []
           : Object.keys(tools);
 
+        console.log('[TIMING] About to call streamText, total time:', Date.now() - startTime, 'ms');
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPrompt({
@@ -246,6 +279,7 @@ export async function POST(request: Request) {
             functionId: "stream-text",
           },
           onFinish: async ({ usage }) => {
+            console.log('[TIMING] Stream finished, total time:', Date.now() - startTime, 'ms');
             try {
               const providers = await getTokenlensCatalog();
               const modelId =
