@@ -96,6 +96,29 @@ export const sheetPrompt = `
 You are a spreadsheet creation assistant. Create a spreadsheet in csv format based on the given prompt. The spreadsheet should contain meaningful column headers and data.
 `;
 
+export const kanbanPrompt = `
+You are a kanban board creation assistant. Create a kanban board structure in JSON format based on the given prompt.
+
+The JSON structure should follow this format:
+{
+  "columns": [
+    {
+      "id": "column-1",
+      "title": "To Do",
+      "tasks": [
+        {
+          "id": "task-1",
+          "title": "Task title",
+          "description": "Task description"
+        }
+      ]
+    }
+  ]
+}
+
+Create meaningful columns (like "To Do", "In Progress", "Done") and populate them with relevant tasks based on the user's request.
+`;
+
 export const updateDocumentPrompt = (
   currentContent: string | null,
   type: ArtifactKind
@@ -106,6 +129,8 @@ export const updateDocumentPrompt = (
     mediaType = "code snippet";
   } else if (type === "sheet") {
     mediaType = "spreadsheet";
+  } else if (type === "kanban") {
+    mediaType = "kanban board";
   }
 
   return `Improve the following contents of the ${mediaType} based on the given prompt.
