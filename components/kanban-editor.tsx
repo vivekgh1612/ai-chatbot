@@ -36,6 +36,7 @@ export function KanbanEditor({
   } | null>(null);
 
   const [localData, setLocalData] = useState<KanbanData>({ columns: [] });
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const isSavingRef = useRef(false);
 
   // Parse and sync content to local state only when it changes externally
@@ -44,9 +45,12 @@ export function KanbanEditor({
       try {
         const parsed = JSON.parse(content);
         setLocalData(parsed);
+        if (parsed.columns.length > 0) {
+          setHasLoadedOnce(true);
+        }
       } catch {
-        // If parsing fails (e.g., during streaming), use empty structure
-        setLocalData({ columns: [] });
+        // If parsing fails (e.g., during streaming), keep existing data
+        // Don't reset to empty - this prevents flickering during updates
       }
     }
     isSavingRef.current = false;
@@ -157,7 +161,7 @@ export function KanbanEditor({
     [onSaveContent]
   );
 
-  if (status === "streaming" && localData.columns.length === 0) {
+  if (!hasLoadedOnce && status === "streaming" && localData.columns.length === 0) {
     return (
       <div className={cn("flex items-center justify-center p-8", isInline ? "h-auto" : "h-full")}>
         <div className="flex flex-col items-center gap-4">
