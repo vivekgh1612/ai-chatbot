@@ -65,7 +65,7 @@ export function DocumentPreview({
         <DocumentToolResult
           isReadonly={isReadonly}
           result={{ id: result.id, title: result.title, kind: result.kind }}
-          type="create"
+          type={args?.isUpdate ? "update" : "create"}
         />
       );
     }
@@ -75,7 +75,7 @@ export function DocumentPreview({
         <DocumentToolCall
           args={{ title: args.title, kind: args.kind }}
           isReadonly={isReadonly}
-          type="create"
+          type={args.isUpdate ? "update" : "create"}
         />
       );
     }
