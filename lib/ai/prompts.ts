@@ -94,7 +94,7 @@ export const systemPrompt = ({
   const requestPrompt = getRequestPromptFromHints(requestHints);
   const documentsPrompt = getDocumentsPrompt(documents, currentDocumentId);
 
-  if (selectedChatModel === "chat-model-reasoning") {
+  if (selectedChatModel === "grok-reasoning") {
     return `${regularPrompt}\n\n${requestPrompt}${documentsPrompt}`;
   }
 
