@@ -32,6 +32,11 @@ This is a guide for using artifacts tools: \`createDocument\` and \`updateDocume
 - For conversational responses
 - When asked to keep it in chat
 
+**IMPORTANT - Clarifying Questions:**
+- If you need more information before creating a document, ask clarifying questions FIRST, then create the document after receiving answers
+- NEVER ask clarifying questions AFTER you've already created a document - the document has already been generated and asking afterward serves no purpose
+- Either create the document immediately with reasonable defaults, OR ask questions first and then create it
+
 **Using \`updateDocument\`:**
 - Default to full document rewrites for major changes
 - Use targeted updates only for specific, isolated changes
