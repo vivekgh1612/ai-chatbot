@@ -270,17 +270,9 @@ export async function POST(request: Request) {
         const activeTools =
           selectedChatModel === "grok-reasoning" ? [] : Object.keys(tools);
 
-        // Check if last message is requesting suggestions to force tool call
+        // Check if last message has metadata requesting a forced tool call
         const lastUserMessage = uiMessages.findLast((m) => m.role === "user");
-        const lastMessageText = lastUserMessage?.parts
-          .filter((p) => p.type === "text")
-          .map((p) => p.text)
-          .join(" ")
-          .toLowerCase() || "";
-
-        const isSuggestingImprovements =
-          lastMessageText.includes("suggest improvements") ||
-          lastMessageText.includes("suggest improvement");
+        const forceToolCall = lastUserMessage?.metadata?.forceToolCall;
 
         // console.log('[TIMING] About to call streamText, total time:', Date.now() - startTime, 'ms');
 
@@ -296,7 +288,7 @@ export async function POST(request: Request) {
           experimental_activeTools: activeTools,
           experimental_transform: smoothStream({ chunking: "word" }),
           tools,
-          toolChoice: isSuggestingImprovements ? { type: "tool", toolName: "requestSuggestions" } : undefined,
+          toolChoice: forceToolCall ? { type: "tool", toolName: forceToolCall } : undefined,
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: "stream-text",

@@ -114,6 +114,9 @@ export const scorecardArtifact = new Artifact<"scorecard", Metadata>({
               text: "Suggest improvements for this scorecard.",
             },
           ],
+          metadata: {
+            forceToolCall: "requestSuggestions",
+          },
         });
       },
     },
