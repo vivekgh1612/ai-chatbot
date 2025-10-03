@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CheckIcon, XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { ScorecardSuggestion } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type KPI = {
@@ -61,11 +64,13 @@ export function ScorecardEditor({
   onSaveContent,
   status,
   isInline = false,
+  suggestions = [],
 }: {
   content: string;
   onSaveContent: (content: string, debounce: boolean) => void;
   status: "streaming" | "idle";
   isInline?: boolean;
+  suggestions?: ScorecardSuggestion[];
 }) {
   const [localData, setLocalData] = useState<ScorecardData>({
     employeeName: "",
@@ -73,6 +78,7 @@ export function ScorecardEditor({
     perspectives: [],
   });
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [resolvedSuggestions, setResolvedSuggestions] = useState<Set<string>>(new Set());
   const isSavingRef = useRef(false);
 
   useEffect(() => {
@@ -102,13 +108,72 @@ export function ScorecardEditor({
 
         kpi[field] = value;
         isSavingRef.current = true;
-        const jsonString = JSON.stringify(newData, null, 2);
-        onSaveContent(jsonString, true);
+
+        // Defer the save to avoid updating parent during render
+        setTimeout(() => {
+          const jsonString = JSON.stringify(newData, null, 2);
+          onSaveContent(jsonString, true);
+        }, 0);
+
         return newData;
       });
     },
     [onSaveContent]
   );
+
+  const handleAcceptSuggestion = useCallback(
+    (suggestion: ScorecardSuggestion) => {
+      setLocalData((currentData) => {
+        const newData = JSON.parse(JSON.stringify(currentData));
+
+        if (suggestion.type === "add-kpi" && suggestion.change.perspectiveId && suggestion.change.newKpi) {
+          const perspective = newData.perspectives.find(
+            (p: Perspective) => p.id === suggestion.change.perspectiveId
+          );
+          if (perspective && suggestion.change.newKpi) {
+            const newKpi = {
+              id: `kpi-${Date.now()}`,
+              ...suggestion.change.newKpi,
+            };
+            perspective.kpis.push(newKpi);
+          }
+        } else if (
+          (suggestion.type === "adjust-target" || suggestion.type === "adjust-weight") &&
+          suggestion.change.perspectiveId &&
+          suggestion.change.kpiId &&
+          suggestion.change.field &&
+          suggestion.change.value !== undefined
+        ) {
+          const perspective = newData.perspectives.find(
+            (p: Perspective) => p.id === suggestion.change.perspectiveId
+          );
+          if (perspective) {
+            const kpi = perspective.kpis.find((k: KPI) => k.id === suggestion.change.kpiId);
+            if (kpi && suggestion.change.field) {
+              (kpi as Record<string, unknown>)[suggestion.change.field] = suggestion.change.value;
+            }
+          }
+        }
+
+        isSavingRef.current = true;
+
+        // Defer the save to avoid updating parent during render
+        setTimeout(() => {
+          const jsonString = JSON.stringify(newData, null, 2);
+          onSaveContent(jsonString, true);
+        }, 0);
+
+        return newData;
+      });
+
+      setResolvedSuggestions((prev) => new Set(prev).add(suggestion.id));
+    },
+    [onSaveContent]
+  );
+
+  const handleRejectSuggestion = useCallback((suggestionId: string) => {
+    setResolvedSuggestions((prev) => new Set(prev).add(suggestionId));
+  }, []);
 
   if (!hasLoadedOnce && status === "streaming" && localData.perspectives.length === 0) {
     return (
@@ -152,19 +217,22 @@ export function ScorecardEditor({
     );
   }
 
+  const activeSuggestions = suggestions.filter((s) => !resolvedSuggestions.has(s.id));
+
   return (
-    <div className="h-full overflow-y-auto p-6">
-      {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{localData.employeeName}</h1>
-          <p className="text-muted-foreground">{localData.period}</p>
+    <div className="flex h-full">
+      <div className="flex-1 overflow-y-auto p-6">
+        {/* Header */}
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">{localData.employeeName}</h1>
+            <p className="text-muted-foreground">{localData.period}</p>
+          </div>
+          <div className="text-right">
+            <div className="text-4xl font-bold">{overallScore.toFixed(1)}%</div>
+            <div className="text-sm text-muted-foreground">Overall Score</div>
+          </div>
         </div>
-        <div className="text-right">
-          <div className="text-4xl font-bold">{overallScore.toFixed(1)}%</div>
-          <div className="text-sm text-muted-foreground">Overall Score</div>
-        </div>
-      </div>
 
       {/* Perspectives */}
       <div className="space-y-6">
@@ -287,6 +355,52 @@ export function ScorecardEditor({
           );
         })}
       </div>
+      </div>
+
+      {/* Suggestions Panel */}
+      {activeSuggestions.length > 0 && (
+        <div className="w-80 border-l bg-muted/30 p-4 overflow-y-auto">
+          <h3 className="mb-4 font-semibold">Suggestions ({activeSuggestions.length})</h3>
+          <div className="space-y-3">
+            {activeSuggestions.map((suggestion) => (
+              <div
+                key={suggestion.id}
+                className="rounded-lg border bg-background p-3 shadow-sm"
+              >
+                <div className="mb-2 font-medium text-sm">{suggestion.description}</div>
+                <div className="mb-3 text-xs text-muted-foreground">
+                  {suggestion.rationale}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleAcceptSuggestion(suggestion)}
+                    className="flex-1"
+                    disabled={suggestion.type === "general" || suggestion.type === "rebalance-weights"}
+                  >
+                    <CheckIcon className="mr-1 h-3 w-3" />
+                    Accept
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRejectSuggestion(suggestion.id)}
+                    className="flex-1"
+                  >
+                    <XIcon className="mr-1 h-3 w-3" />
+                    Reject
+                  </Button>
+                </div>
+                {(suggestion.type === "general" || suggestion.type === "rebalance-weights") && (
+                  <div className="mt-2 text-xs text-muted-foreground italic">
+                    Manual implementation required
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -33,6 +33,28 @@ export type ChatTools = {
   requestSuggestions: requestSuggestionsTool;
 };
 
+export type ScorecardSuggestion = {
+  id: string;
+  documentId: string;
+  type: "add-kpi" | "adjust-target" | "adjust-weight" | "rebalance-weights" | "general";
+  description: string;
+  rationale: string;
+  change: {
+    perspectiveId?: string;
+    kpiId?: string;
+    field?: string;
+    value?: string | number;
+    newKpi?: {
+      name: string;
+      target: number;
+      current: number;
+      unit: string;
+      weight: number;
+    };
+  };
+  isResolved: boolean;
+};
+
 export type CustomUIDataTypes = {
   textDelta: string;
   imageDelta: string;
@@ -42,6 +64,7 @@ export type CustomUIDataTypes = {
   scorecardDelta: string;
   idpDelta: string;
   suggestion: Suggestion;
+  scorecardSuggestion: ScorecardSuggestion;
   appendMessage: string;
   id: string;
   title: string;

@@ -8,14 +8,17 @@ import {
   UndoIcon,
 } from "@/components/icons";
 import { ScorecardEditor } from "@/components/scorecard-editor";
+import type { ScorecardSuggestion } from "@/lib/types";
 
-type Metadata = Record<string, never>;
+type Metadata = {
+  suggestions: ScorecardSuggestion[];
+};
 
 export const scorecardArtifact = new Artifact<"scorecard", Metadata>({
   kind: "scorecard",
   description: "Useful for creating and managing employee performance scorecards based on Balanced Scorecard methodology",
-  initialize: () => null,
-  onStreamPart: ({ setArtifact, streamPart }) => {
+  initialize: () => ({ suggestions: [] }),
+  onStreamPart: ({ setArtifact, streamPart, setMetadata }) => {
     if (streamPart.type === "data-scorecardDelta") {
       setArtifact((draftArtifact) => ({
         ...draftArtifact,
@@ -24,14 +27,24 @@ export const scorecardArtifact = new Artifact<"scorecard", Metadata>({
         status: "streaming",
       }));
     }
+
+    if (streamPart.type === "data-scorecardSuggestion") {
+      setMetadata((metadata) => {
+        return {
+          suggestions: [...(metadata?.suggestions || []), streamPart.data],
+        };
+      });
+    }
   },
-  content: ({ content, onSaveContent, status, isInline }) => {
+  content: ({ content, onSaveContent, status, isInline, metadata }) => {
     return (
       <ScorecardEditor
+        key={`scorecard-${metadata?.suggestions.length || 0}`}
         content={content}
         onSaveContent={onSaveContent}
         status={status}
         isInline={isInline}
+        suggestions={metadata ? metadata.suggestions : []}
       />
     );
   },
@@ -98,7 +111,7 @@ export const scorecardArtifact = new Artifact<"scorecard", Metadata>({
           parts: [
             {
               type: "text",
-              text: "Can you suggest improvements or adjustments to this scorecard to better align with performance goals?",
+              text: "Use the requestSuggestions tool to analyze this scorecard and provide actionable improvement suggestions. Do not ask clarifying questions - make reasonable assumptions based on the data.",
             },
           ],
         });

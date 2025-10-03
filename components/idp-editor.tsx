@@ -85,8 +85,13 @@ export function IDPEditor({
 
         action[field] = value;
         isSavingRef.current = true;
-        const jsonString = JSON.stringify(newData, null, 2);
-        onSaveContent(jsonString, true);
+
+        // Defer the save to avoid updating parent during render
+        setTimeout(() => {
+          const jsonString = JSON.stringify(newData, null, 2);
+          onSaveContent(jsonString, true);
+        }, 0);
+
         return newData;
       });
     },
@@ -111,8 +116,13 @@ export function IDPEditor({
         action.status = statusFlow[action.status];
 
         isSavingRef.current = true;
-        const jsonString = JSON.stringify(newData, null, 2);
-        onSaveContent(jsonString, false);
+
+        // Defer the save to avoid updating parent during render
+        setTimeout(() => {
+          const jsonString = JSON.stringify(newData, null, 2);
+          onSaveContent(jsonString, false);
+        }, 0);
+
         return newData;
       });
     },
