@@ -111,7 +111,7 @@ export const scorecardArtifact = new Artifact<"scorecard", Metadata>({
           parts: [
             {
               type: "text",
-              text: "Use the requestSuggestions tool to analyze this scorecard and provide actionable improvement suggestions. Do not ask clarifying questions - make reasonable assumptions based on the data.",
+              text: "Suggest improvements for this scorecard.",
             },
           ],
         });
